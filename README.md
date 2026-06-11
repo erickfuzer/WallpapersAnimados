@@ -71,6 +71,7 @@ Os wallpapers podem ser embutidos como `<iframe>` em qualquer projeto web:
 
 ```
 animated-html-wallpapers/
+├── LICENSE
 ├── starfield-wallpaper-static.html
 ├── preview.gif
 └── README.md
