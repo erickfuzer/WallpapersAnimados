@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Starfield</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background: #000000; overflow: hidden; }
+    canvas { display: block; position: fixed; inset: 0; }
+  </style>
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+  <script>
+    (function () {
+      const canvas = document.getElementById('starfield');
+      const ctx    = canvas.getContext('2d');
+      let W, H, stars = [], clusters = [], galaxies = [], shootingStars = [], satellites = [], starlinkTrains = [], ufos = [];
+
+      const DENSITY = 0.00028;
+
+            // Paletas azuladas — espirais próximas
+      const GALAXY_PALETTES_BLUE = [
+        { core: [255, 220, 140], disk: [120, 160, 255] }, // azul intenso
+        { core: [255, 210, 120], disk: [100, 150, 245] }, // azul vivo
+        { core: [245, 215, 130], disk: [140, 180, 255] }, // azul suave
+        { core: [250, 200, 110], disk: [130, 170, 240] }, // azul-índigo
+      ];
+      // Paletas quentes/neutras
+      const GALAXY_PALETTES_WARM = [
+        { core: [245, 200, 100], disk: [225, 215, 185] }, // dourado neutro
+        { core: [255, 225, 150], disk: [200, 185, 165] }, // creme
+        { core: [235, 185, 120], disk: [210, 190, 165] }, // âmbar
+        { core: [255, 230, 160], disk: [215, 210, 195] }, // branco-quente
+        { core: [220, 175, 110], disk: [195, 180, 160] }, // âmbar escuro
+      ];
+      // Paletas avermelhadas — galáxias distantes com redshift forte
+      const GALAXY_PALETTES_RED = [
+        { core: [255, 160,  80], disk: [200,  80,  60] }, // laranja-vermelho
+        { core: [255, 140,  60], disk: [180,  60,  40] }, // vermelho-laranja
+        { core: [240, 120,  70], disk: [160,  50,  50] }, // vermelho profundo
+        { core: [255, 170,  90], disk: [210,  90,  70] }, // coral
+      ];
+      // Paletas roxas/exóticas — galáxias com poeira ou interação
+      const GALAXY_PALETTES_EXOTIC = [
+        { core: [220, 180, 255], disk: [140,  80, 200] }, // roxo
+        { core: [200, 160, 255], disk: [100,  60, 180] }, // violeta
+        { core: [255, 200, 240], disk: [180,  80, 160] }, // rosa-púrpura
+      ];
+
+      const SPECTRAL = [
+        { type:'M', rMin:0.28, rMax:0.65, rgb:[235, 200, 190], weight:18, glow:false },
+        { type:'K', rMin:0.30, rMax:0.75, rgb:[240, 215, 195], weight:16, glow:false },
+        { type:'G', rMin:0.32, rMax:0.85, rgb:[248, 235, 210], weight:20, glow:false },
+        { type:'F', rMin:0.38, rMax:1.00, rgb:[252, 245, 230], weight:18, glow:false },
+        { type:'A', rMin:0.50, rMax:1.20, rgb:[240, 245, 255], weight:16, glow:true  },
+        { type:'B', rMin:0.65, rMax:1.40, rgb:[210, 225, 255], weight: 9, glow:true  },
+        { type:'O', rMin:0.85, rMax:1.60, rgb:[185, 205, 255], weight: 3, glow:true  },
+      ];
+
+      const totalWeight = SPECTRAL.reduce((s, c) => s + c.weight, 0);
+      function pickClass() {
+        let roll = Math.random() * totalWeight;
+        for (const c of SPECTRAL) { roll -= c.weight; if (roll <= 0) return c; }
+        return SPECTRAL[0];
+      }
+
+      function rand(a, b) { return Math.random() * (b - a) + a; }
+      function jitter(rgb, amount = 8) {
+        return rgb.map(v => Math.min(255, Math.max(0, Math.round(v + rand(-amount, amount)))));
+      }
+      function lerpRgb(a, b, t) {
+        return a.map((v, i) => Math.round(v + (b[i] - v) * t));
+      }
+      function applyRedshift(rgb, z) {
+        return [
+          Math.min(255, Math.round(rgb[0] * (1 + z * 0.18))),
+          Math.round(rgb[1] * (1 - z * 0.12)),
+          Math.round(rgb[2] * (1 - z * 0.25)),
+        ].map(v => Math.max(0, Math.min(255, v)));
+      }
+
+      // Spike de difração correto: 4 raios saindo do centro em ângulos fixos
+      // style 'cross' = 0°/90°, style 'diagonal' = 45°/135°
+      function drawDiffractionSpike(x, y, r, rgb, alpha, spikeStyle) {
+        const len    = r * rand(22, 38);
+        const angles = spikeStyle === 'cross'
+          ? [0, Math.PI / 2]
+          : [Math.PI / 4, Math.PI * 3 / 4];
+
+        ctx.save();
+        for (const baseAngle of angles) {
+          // cada ângulo gera 2 raios opostos = 4 pontas no total
+          for (const dir of [1, -1]) {
+            const angle = baseAngle + (dir === -1 ? Math.PI : 0);
+            const ex = x + Math.cos(angle) * len;
+            const ey = y + Math.sin(angle) * len;
+            const g  = ctx.createLinearGradient(x, y, ex, ey);
+            g.addColorStop(0,   `rgba(${rgb},${(alpha * 0.65).toFixed(3)})`);
+            g.addColorStop(0.25,`rgba(${rgb},${(alpha * 0.30).toFixed(3)})`);
+            g.addColorStop(1,   `rgba(${rgb},0)`);
+            const perpX = Math.sin(angle) * r * 0.25;
+            const perpY = -Math.cos(angle) * r * 0.25;
+            ctx.beginPath();
+            ctx.moveTo(x + perpX, y + perpY);
+            ctx.lineTo(ex, ey);
+            ctx.lineTo(x - perpX, y - perpY);
+            ctx.closePath();
+            ctx.fillStyle = g;
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      function buildGalaxies() {
+        galaxies = [];
+        const COUNT = Math.floor(rand(8, 15));
+        for (let i = 0; i < COUNT; i++) {
+          const depth   = rand(0, 1);
+          // 54% azuladas, 34% quentes, 8% vermelhas, 4% exóticas
+          const palRoll = Math.random();
+          let palPool;
+          if      (palRoll < 0.54) palPool = GALAXY_PALETTES_BLUE;
+          else if (palRoll < 0.88) palPool = GALAXY_PALETTES_WARM;
+          else if (palRoll < 0.96) palPool = GALAXY_PALETTES_RED;
+          else                     palPool = GALAXY_PALETTES_EXOTIC;
+          const pal     = palPool[Math.floor(Math.random() * palPool.length)];
+          const coreRgb = pal.core;
+          // Redshift adicional nas distantes com paleta vermelha
+          const dz      = depth * 0.30;
+          const diskRgb = [
+            Math.min(255, Math.round(pal.disk[0] * (1 + dz * 0.12))),
+            Math.round(pal.disk[1] * (1 - dz * 0.06)),
+            Math.round(pal.disk[2] * (1 - dz * 0.16)),
+          ].map(v => Math.max(0, Math.min(255, v)));
+
+          const sizeTier = Math.random();
+          const baseSize = sizeTier < 0.65 ? rand(4.0, 9.0)
+                         : sizeTier < 0.90 ? rand(9.0, 16.0)
+                         : rand(16.0, 24.0);
+          const size = baseSize * (1 - depth * 0.45);
+
+          const viewAngle = Math.random();
+          const ryRatio = viewAngle < 0.25 ? rand(0.06, 0.16)
+                        : viewAngle < 0.55 ? rand(0.22, 0.50)
+                        : rand(0.55, 0.92);
+
+          galaxies.push({
+            x: rand(0.05, 0.95) * W, y: rand(0.05, 0.95) * H,
+            size, ryRatio,
+            angle: rand(0, Math.PI),
+            coreRgb, diskRgb, depth,
+            alpha: rand(0.55, 0.85) * (1 - depth * 0.40),
+            pulseSpeed:  rand(0.0010, 0.0040),
+            pulseOffset: rand(0, Math.PI * 2),
+            pulseAmp:    rand(0.18, 0.38),
+          });
+        }
+        galaxies.sort((a, b) => b.depth - a.depth);
+      }
+
+      function buildClusters() {
+        clusters = [];
+        const COUNT = Math.floor(rand(6, 10));
+        for (let i = 0; i < COUNT; i++) {
+          clusters.push({
+            x: rand(0.05, 0.95) * W, y: rand(0.05, 0.95) * H,
+            radius: rand(0.04, 0.10) * Math.min(W, H),
+            extra: Math.floor(rand(8, 22)),
+          });
+        }
+      }
+
+      function build() {
+        stars = [];
+        const COUNT = Math.floor(W * H * DENSITY);
+        for (let i = 0; i < COUNT; i++) {
+          const cls = pickClass();
+          const r   = rand(cls.rMin, cls.rMax);
+          const sg  = Math.random();
+          const speed = sg < 0.2  ? rand(0.002, 0.005)
+                      : sg < 0.85 ? rand(0.005,  0.018)
+                      :             rand(0.018,   0.035);
+          const bright       = r > 0.8 && cls.glow;  // threshold menor = mais estrelas elegíveis
+          const hasSpikeChance = bright && Math.random() < 0.60; // 60% das elegíveis
+          const distZ   = rand(0, 0.35);
+          const baseRgb = jitter(cls.rgb);
+          const finalRgb = [
+            Math.min(255, Math.round(baseRgb[0] * (1 + distZ * 0.15))),
+            Math.round(baseRgb[1] * (1 - distZ * 0.08)),
+            Math.round(baseRgb[2] * (1 - distZ * 0.18)),
+          ].map(v => Math.max(0, Math.min(255, v)));
+          stars.push({
+            x: rand(0, W), y: rand(0, H), r,
+            base: rand(0.25, 0.90), alpha: 0,
+            speed, offset: rand(0, Math.PI * 2),
+            rgb: finalRgb.join(','),
+            glow: cls.glow, type: cls.type,
+            spike: hasSpikeChance,
+            spikeStyle: Math.random() > 0.5 ? 'cross' : 'diagonal',
+          });
+        }
+        for (const cl of clusters) {
+          for (let i = 0; i < cl.extra; i++) {
+            const u1 = Math.random(), u2 = Math.random();
+            const z  = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+            const z2 = Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
+            const cx2 = cl.x + z  * cl.radius * 0.38;
+            const cy2 = cl.y + z2 * cl.radius * 0.38;
+            const cls2 = pickClass();
+            const r    = rand(cls2.rMin, cls2.rMax);
+            const sg2  = Math.random();
+            const speed = sg2 < 0.2  ? rand(0.002, 0.005)
+                        : sg2 < 0.85 ? rand(0.005,  0.018)
+                        :              rand(0.018,   0.035);
+            const distZ2   = rand(0, 0.35);
+            const baseRgb2 = jitter(cls2.rgb);
+            const finalRgb2 = [
+              Math.min(255, Math.round(baseRgb2[0] * (1 + distZ2 * 0.15))),
+              Math.round(baseRgb2[1] * (1 - distZ2 * 0.08)),
+              Math.round(baseRgb2[2] * (1 - distZ2 * 0.18)),
+            ].map(v => Math.max(0, Math.min(255, v)));
+            stars.push({
+              x: Math.max(0, Math.min(W, cx2)),
+              y: Math.max(0, Math.min(H, cy2)),
+              r, base: rand(0.30, 0.95), alpha: 0,
+              speed, offset: rand(0, Math.PI * 2),
+              rgb: finalRgb2.join(','),
+              glow: cls2.glow, type: cls2.type,
+              spike: false,
+            });
+          }
+        }
+      }
+
+      // Cache de offscreen canvas para cada galáxia — desenhado uma vez, reutilizado
+      function buildGalaxyCache() {
+        for (const gal of galaxies) {
+          const S   = Math.ceil(gal.size * 2.8);
+          const off = document.createElement('canvas');
+          off.width  = S * 2;
+          off.height = S * 2;
+          const oc   = off.getContext('2d');
+          const cx   = S, cy = S;
+          const { diskRgb, alpha, size } = gal;
+          const diskR = size * 1.1;
+
+          const disk = oc.createRadialGradient(cx, cy, 0, cx, cy, diskR);
+          disk.addColorStop(0,    `rgba(${diskRgb.join(',')},${(alpha * 0.55).toFixed(3)})`);
+          disk.addColorStop(0.40, `rgba(${diskRgb.join(',')},${(alpha * 0.28).toFixed(3)})`);
+          disk.addColorStop(0.75, `rgba(${diskRgb.join(',')},${(alpha * 0.08).toFixed(3)})`);
+          disk.addColorStop(1,    `rgba(${diskRgb.join(',')},0)`);
+          oc.beginPath();
+          oc.arc(cx, cy, diskR, 0, Math.PI * 2);
+          oc.fillStyle = disk;
+          oc.fill();
+
+          gal._cache  = off;
+          gal._cacheS = S;
+          gal._coreR  = size * 0.42;  // maior
+        }
+      }
+
+      function drawGalaxies(f) {
+        for (const gal of galaxies) {
+          if (!gal._cache) continue;
+          const { x, y, size, ryRatio, angle, _cache, _cacheS, alpha } = gal;
+          const S = _cacheS;
+
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          ctx.scale(1, ryRatio);
+          ctx.drawImage(_cache, -S, -S, S * 2, S * 2);
+
+          // Núcleo pulsante
+          const pulse     = 1 + gal.pulseAmp * Math.sin(f * gal.pulseSpeed + gal.pulseOffset);
+          const coreAlpha = Math.min(1, alpha * 2.2 * pulse);
+          const coreR     = gal._coreR;
+          const coreRgb   = gal.coreRgb;
+          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
+          g.addColorStop(0,    `rgba(${coreRgb.join(',')},${coreAlpha.toFixed(3)})`);
+          g.addColorStop(0.45, `rgba(${coreRgb.join(',')},${(coreAlpha * 0.65).toFixed(3)})`);
+          g.addColorStop(0.80, `rgba(${coreRgb.join(',')},${(coreAlpha * 0.20).toFixed(3)})`);
+          g.addColorStop(1,    `rgba(${coreRgb.join(',')},0)`);
+          ctx.beginPath();
+          ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+          ctx.fillStyle = g;
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      function spawnShootingStar() {
+        // Nasce numa borda aleatória, atravessa em direção oposta
+        const fromEdge = Math.floor(rand(0, 4));
+        let x, y, angle;
+        if (fromEdge === 0) { x = rand(0, W); y = -10; angle = rand(0.3, 1.2); }
+        else if (fromEdge === 1) { x = W + 10; y = rand(0, H); angle = rand(2.0, 2.8); }
+        else if (fromEdge === 2) { x = rand(0, W); y = H + 10; angle = rand(Math.PI + 0.3, Math.PI + 1.2); }
+        else { x = -10; y = rand(0, H); angle = rand(-0.5, 0.5); }
+        const speed = rand(28, 48);
+        shootingStars.push({
+          x, y, angle,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          len:   rand(60, 120),
+          alpha: rand(0.6, 1.0),
+          life:  1.0,  // 1=vivo, 0=morto
+          decay: rand(0.008, 0.016),
+          width: rand(0.5, 1.0),
+        });
+      }
+
+      function drawShootingStars() {
+        for (const s of shootingStars) {
+          const tailX = s.x - Math.cos(s.angle) * s.len * s.life;
+          const tailY = s.y - Math.sin(s.angle) * s.len * s.life;
+          const g = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
+          g.addColorStop(0, `rgba(255,255,255,0)`);
+          g.addColorStop(1, `rgba(255,255,255,${(s.alpha * s.life).toFixed(3)})`);
+          ctx.beginPath();
+          ctx.moveTo(tailX, tailY);
+          ctx.lineTo(s.x, s.y);
+          ctx.strokeStyle = g;
+          ctx.lineWidth = s.width;
+          ctx.stroke();
+          // Update
+          s.x    += s.vx;
+          s.y    += s.vy;
+          s.life -= s.decay;
+        }
+        // Limpar mortas
+        for (let i = shootingStars.length - 1; i >= 0; i--) {
+          if (shootingStars[i].life <= 0) shootingStars.splice(i, 1);
+        }
+      }
+
+      function spawnSatellite() {
+        const fromEdge = Math.floor(rand(0, 4));
+        let x, y, angle;
+        if (fromEdge === 0) { x = rand(0, W); y = -4;    angle = rand(0.2, 1.4); }
+        else if (fromEdge === 1) { x = W + 4; y = rand(0, H); angle = rand(1.9, 2.9); }
+        else if (fromEdge === 2) { x = rand(0, W); y = H + 4; angle = rand(Math.PI + 0.2, Math.PI + 1.4); }
+        else { x = -4; y = rand(0, H); angle = rand(-0.6, 0.6); }
+        const speed = rand(1.2, 2.8); // bem mais lento que cometa
+        satellites.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          r:    rand(0.8, 1.4),        // pontinho pequeno
+          alpha: rand(0.55, 0.85),
+          // pisca levemente como painel solar refletindo luz
+          blinkSpeed:  rand(0.04, 0.12),
+          blinkOffset: rand(0, Math.PI * 2),
+        });
+      }
+
+      function drawSatellites(f) {
+        for (const s of satellites) {
+          // Brilho levemente variável — reflexo solar
+          const blink = s.alpha * (0.75 + 0.25 * Math.sin(f * s.blinkSpeed + s.blinkOffset));
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(220,230,255,${blink.toFixed(3)})`;
+          ctx.fill();
+          // Update
+          s.x += s.vx;
+          s.y += s.vy;
+        }
+        // Remover os que saíram da tela
+        for (let i = satellites.length - 1; i >= 0; i--) {
+          const s = satellites[i];
+          if (s.x < -20 || s.x > W + 20 || s.y < -20 || s.y > H + 20)
+            satellites.splice(i, 1);
+        }
+      }
+
+      function spawnStarlinkTrain() {
+        const fromEdge = Math.floor(rand(0, 4));
+        let x, y, angle;
+        if (fromEdge === 0)      { x = rand(0.1, 0.9) * W; y = -10;    angle = rand(0.3, 1.2); }
+        else if (fromEdge === 1) { x = W + 10; y = rand(0.1, 0.9) * H; angle = rand(2.0, 2.8); }
+        else if (fromEdge === 2) { x = rand(0.1, 0.9) * W; y = H + 10; angle = rand(Math.PI + 0.3, Math.PI + 1.2); }
+        else                     { x = -10; y = rand(0.1, 0.9) * H;    angle = rand(-0.4, 0.4); }
+
+        const speed    = rand(1.0, 2.0);        // lento como satélite
+        const count    = Math.floor(rand(8, 18)); // 8 a 18 satélites no carretel
+        const spacing  = rand(10, 18);           // espaço entre cada um
+        const dx       = Math.cos(angle);
+        const dy       = Math.sin(angle);
+
+        // Perpendicular à direção de movimento — para deslocar lateralmente
+        const px = -dy, py = dx;
+        // Ponto de separação — satélites antes estão mais juntos, depois mais espaçados
+        const splitAt = Math.floor(rand(count * 0.3, count * 0.7));
+        const jitter = Array.from({length: count}, (_, i) => {
+          // Antes do split: juntos (espaçamento comprimido)
+          // Depois do split: separando (espaçamento crescente)
+          const spreadFactor = i < splitAt
+            ? rand(0.3, 0.7)                    // comprimidos — deploy recente
+            : rand(1.0, 1.8) * (1 + (i - splitAt) * 0.08); // separando progressivamente
+          return {
+            ds:  (spreadFactor - 1) * spacing * i * 0.3 + rand(-1.5, 1.5),
+            px:  px * rand(-1.5, 1.5),
+            py:  py * rand(-1.5, 1.5),
+            // Cintilação — só algumas (~40%) cintilam
+            twinkle:      Math.random() < 0.40,
+            twinkleSpeed: rand(0.06, 0.16),
+            twinkleOff:   rand(0, Math.PI * 2),
+            spike:        Math.random() < 0.20,
+            spikeStyle:   Math.random() > 0.5 ? 'cross' : 'diagonal',
+          };
+        });
+        starlinkTrains.push({
+          x, y,
+          vx: dx * speed,
+          vy: dy * speed,
+          dx, dy,
+          count, spacing, jitter,
+          alpha:       rand(0.45, 0.75),
+          blinkSpeed:  rand(0.03, 0.08),
+          blinkOffset: rand(0, Math.PI * 2),
+          r: rand(0.7, 1.2),
+        });
+      }
+
+      function drawStarlinkTrains(f) {
+        for (const t of starlinkTrains) {
+          for (let i = 0; i < t.count; i++) {
+            const j    = t.jitter[i];
+            const dist = t.spacing * i + j.ds;
+            const sx   = t.x - t.dx * dist + j.px;
+            const sy   = t.y - t.dy * dist + j.py;
+            // Cintilação individual nos marcados, brilho base nos outros
+            const twinkleMod = j.twinkle
+              ? (0.55 + 0.45 * Math.sin(f * j.twinkleSpeed + j.twinkleOff))
+              : (0.82 + 0.18 * Math.sin(f * t.blinkSpeed + t.blinkOffset + i * 0.3));
+            const fade = Math.max(0.2, 1 - i * 0.030);
+            if (j.spike) {
+              drawDiffractionSpike(sx, sy, t.r * 1.8, '210,225,255', t.alpha * twinkleMod * fade * 0.7, j.spikeStyle);
+            }
+            ctx.beginPath();
+            ctx.arc(sx, sy, t.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(210,225,255,${(t.alpha * twinkleMod * fade).toFixed(3)})`;
+            ctx.fill();
+          }
+          // Update — move a cabeça
+          t.x += t.vx;
+          t.y += t.vy;
+        }
+        // Despawn quando a CAUDA (último satélite) saiu da tela
+        for (let i = starlinkTrains.length - 1; i >= 0; i--) {
+          const t    = starlinkTrains[i];
+          const last = t.count - 1;
+          const tailDist = t.spacing * last + t.jitter[last].ds;
+          const tailX = t.x - t.dx * tailDist + t.jitter[last].px;
+          const tailY = t.y - t.dy * tailDist + t.jitter[last].py;
+          if (tailX < -40 && t.vx < 0) starlinkTrains.splice(i, 1);
+          else if (tailX > W + 40 && t.vx > 0) starlinkTrains.splice(i, 1);
+          else if (tailY < -40 && t.vy < 0) starlinkTrains.splice(i, 1);
+          else if (tailY > H + 40 && t.vy > 0) starlinkTrains.splice(i, 1);
+        }
+      }
+
+      // Cores que o OVNI cicla — verde, azul, roxo, vermelho, branco
+      const UFO_COLORS = [
+        [80,  255, 120],  // verde alienígena
+        [60,  180, 255],  // azul elétrico
+        [180,  80, 255],  // roxo
+        [255,  60,  80],  // vermelho
+        [255, 255, 255],  // branco puro
+        [255, 200,  60],  // âmbar
+      ];
+
+      function spawnUfo() {
+        // Nasce numa borda aleatória
+        const fromEdge = Math.floor(rand(0, 4));
+        let x, y;
+        if (fromEdge === 0)      { x = rand(0.1, 0.9) * W; y = -8; }
+        else if (fromEdge === 1) { x = W + 8; y = rand(0.1, 0.9) * H; }
+        else if (fromEdge === 2) { x = rand(0.1, 0.9) * W; y = H + 8; }
+        else                     { x = -8; y = rand(0.1, 0.9) * H; }
+
+        const baseAngle = rand(0, Math.PI * 2);
+        ufos.push({
+          x, y,
+          speed:      rand(1.5, 3.5),
+          angle:      baseAngle,        // direção atual
+          targetAngle: baseAngle,       // direção alvo (muda subitamente)
+          turnTimer:  0,
+          turnInterval: Math.floor(rand(40, 100)), // frames até próxima mudança de direção
+          // Cor e piscada
+          colorIndex:  0,
+          nextColor:   1,
+          colorTimer:  0,
+          colorInterval: Math.floor(rand(8, 20)),  // frames entre mudanças de cor
+          alpha:       0,               // começa invisível, aparece gradualmente
+          fadeIn:      true,
+          r:           rand(1.2, 2.0),  // um pouco maior que satélite
+          // Velocidade pode variar — acelera e desacelera
+          speedTimer:  0,
+          speedInterval: Math.floor(rand(60, 150)),
+          speedTarget: rand(1.0, 4.5),
+        });
+      }
+
+      function drawUfos(f) {
+        for (const u of ufos) {
+          // Fade in suave ao aparecer
+          if (u.fadeIn) {
+            u.alpha = Math.min(0.92, u.alpha + 0.02);
+            if (u.alpha >= 0.92) u.fadeIn = false;
+          }
+
+          // Mudança de direção súbita — zigue-zague errático
+          u.turnTimer++;
+          if (u.turnTimer >= u.turnInterval) {
+            u.targetAngle  = rand(0, Math.PI * 2);
+            u.turnInterval = Math.floor(rand(30, 110));
+            u.turnTimer    = 0;
+          }
+          // Interpola suavemente para o novo ângulo (mas rápido — movimento abrupto)
+          const da = u.targetAngle - u.angle;
+          u.angle += da * 0.12;
+
+          // Variação de velocidade
+          u.speedTimer++;
+          if (u.speedTimer >= u.speedInterval) {
+            u.speedTarget   = rand(0.8, 4.5);
+            u.speedInterval = Math.floor(rand(40, 160));
+            u.speedTimer    = 0;
+          }
+          u.speed += (u.speedTarget - u.speed) * 0.05;
+
+          // Mover
+          u.x += Math.cos(u.angle) * u.speed;
+          u.y += Math.sin(u.angle) * u.speed;
+
+          // Ciclo de cores — muda rapidamente entre cores da paleta
+          u.colorTimer++;
+          if (u.colorTimer >= u.colorInterval) {
+            u.colorIndex   = u.nextColor;
+            u.nextColor    = (u.nextColor + 1) % UFO_COLORS.length;
+            u.colorInterval = Math.floor(rand(6, 22));
+            u.colorTimer   = 0;
+          }
+          const rgb = UFO_COLORS[u.colorIndex];
+
+          // Pulso de brilho rápido e irregular
+          const pulse = 0.6 + 0.4 * Math.abs(Math.sin(f * rand(0.15, 0.30)));
+          const a     = u.alpha * pulse;
+
+          // Halo colorido ao redor
+          const glowR = u.r * 5;
+          const glow  = ctx.createRadialGradient(u.x, u.y, 0, u.x, u.y, glowR);
+          glow.addColorStop(0,   `rgba(${rgb.join(',')},${(a * 0.50).toFixed(3)})`);
+          glow.addColorStop(0.5, `rgba(${rgb.join(',')},${(a * 0.15).toFixed(3)})`);
+          glow.addColorStop(1,   `rgba(${rgb.join(',')},0)`);
+          ctx.beginPath();
+          ctx.arc(u.x, u.y, glowR, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.fill();
+
+          // Corpo
+          ctx.beginPath();
+          ctx.arc(u.x, u.y, u.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${rgb.join(',')},${Math.min(1, a * 1.2).toFixed(3)})`;
+          ctx.fill();
+        }
+
+        // Despawn fora da tela
+        for (let i = ufos.length - 1; i >= 0; i--) {
+          const u = ufos[i];
+          if (u.x < -30 || u.x > W + 30 || u.y < -30 || u.y > H + 30)
+            ufos.splice(i, 1);
+        }
+      }
+
+      function drawVignette() {
+        const g = ctx.createRadialGradient(W/2, H/2, W * 0.28, W/2, H/2, W * 0.80);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(1, 'rgba(0,0,0,0.55)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+        buildGalaxies();
+        buildGalaxyCache();
+        buildClusters();
+        build();
+        // Resetar timers e limpar eventos ativos ao redimensionar
+        shootingStarTimer = 0;
+        satelliteTimer    = 0;
+        starlinkTimer     = 0;
+        ufoTimer          = 0;
+        shootingStars.length = 0;
+        satellites.length    = 0;
+        starlinkTrains.length = 0;
+        ufos.length           = 0;
+      }
+
+      let f = 0;
+      let shootingStarTimer = 0;
+      let satelliteTimer    = 0;
+      let starlinkTimer     = 0;
+      let ufoTimer          = 0;
+      const SHOOTING_INTERVAL  = 1050; // ~35s entre cometas
+      const SATELLITE_INTERVAL = 1500; // ~50s entre satélites
+      const STARLINK_INTERVAL  = 7200; // ~4min entre trens Starlink (raro de verdade)
+      const UFO_INTERVAL       = 9000; // ~5min entre UFOs (bem raro)
+      const TARGET_FPS = 30;
+      const FRAME_INTERVAL = 1000 / TARGET_FPS;
+      let lastFrameTime = 0;
+
+      function draw(timestamp) {
+        // Limita a 30fps — pula o frame se ainda não passou tempo suficiente
+        if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+          requestAnimationFrame(draw);
+          return;
+        }
+        lastFrameTime = timestamp;
+
+        ctx.clearRect(0, 0, W, H);
+        f++;
+
+        // Shooting star timer
+        shootingStarTimer++;
+        if (shootingStarTimer >= SHOOTING_INTERVAL + Math.floor(rand(0, 450))) {
+          spawnShootingStar();
+          shootingStarTimer = 0;
+        }
+        satelliteTimer++;
+        if (satelliteTimer >= SATELLITE_INTERVAL + Math.floor(rand(0, 600))) {
+          spawnSatellite();
+          satelliteTimer = 0;
+        }
+        starlinkTimer++;
+        if (starlinkTimer >= STARLINK_INTERVAL + Math.floor(rand(0, 1800))) {
+          spawnStarlinkTrain();
+          starlinkTimer = 0;
+        }
+        ufoTimer++;
+        if (ufoTimer >= UFO_INTERVAL + Math.floor(rand(0, 3600))) {
+          spawnUfo();
+          ufoTimer = 0;
+        }
+
+        drawGalaxies(f);
+
+        // Estrelas
+        for (const s of stars) {
+          s.alpha = s.base * (0.4 + 0.6 * Math.sin(f * s.speed + s.offset));
+          const px = s.x;
+          const py = s.y;
+
+          if (s.spike) {
+            drawDiffractionSpike(px, py, s.r, s.rgb, s.alpha, s.spikeStyle);
+          }
+
+          if (s.glow) {
+            const glowR = s.r * (s.type === 'O' ? 6 : s.type === 'B' ? 5 : 4);
+            const g = ctx.createRadialGradient(px, py, 0, px, py, glowR);
+            g.addColorStop(0, `rgba(${s.rgb},${(s.alpha * 0.22).toFixed(3)})`);
+            g.addColorStop(1, `rgba(${s.rgb},0)`);
+            ctx.beginPath();
+            ctx.arc(px, py, glowR, 0, Math.PI * 2);
+            ctx.fillStyle = g;
+            ctx.fill();
+          }
+
+          ctx.beginPath();
+          ctx.arc(px, py, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${s.rgb},${s.alpha.toFixed(3)})`;
+          ctx.fill();
+        }
+
+        // Shooting stars e satélites — passam na frente de tudo
+        drawShootingStars();
+        drawSatellites(f);
+        drawStarlinkTrains(f);
+        drawUfos(f);
+
+        // Vinheta por cima de tudo
+        drawVignette();
+
+        requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+      draw();
+    })();
+  </script>
+</body>
+</html>
