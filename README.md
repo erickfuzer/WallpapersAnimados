@@ -1,4 +1,4 @@
-# 🌌 Animated HTML Wallpapers
+# 🌌 Animated Wallpapers
 
 > Wallpapers animados feitos com HTML e JavaScript puro, leves, personalizáveis e compatíveis com Wallpaper Engine.
 
