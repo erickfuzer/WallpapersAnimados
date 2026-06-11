@@ -83,3 +83,17 @@ animated-html-wallpapers/
 ## 🤝 Contribuindo
 
 Tem uma ideia de wallpaper? Abre uma issue ou manda um pull request, quanto mais efeitos, melhor.
+
+---
+ 
+## 🙏 Créditos
+ 
+O wallpaper Starfield foi desenvolvido em colaboração com o [Claude](https://claude.ai) (Anthropic), que auxiliou na arquitetura dos efeitos e na implementação do código.
+
+---
+
+## 📄 Licença
+ 
+[MIT](LICENSE), use, modifique e distribua à vontade.
+ 
+---
