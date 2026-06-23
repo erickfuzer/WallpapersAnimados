@@ -2,16 +2,14 @@
 
 > Wallpapers animados feitos com HTML e JavaScript puro, leves, personalizáveis e compatíveis com Wallpaper Engine.
 
----
+
 
 ## ✨ Wallpapers disponíveis
 
 ### 🌠 Starfield
 Um céu noturno animado com classificação estelar realista, galáxias, estrelas cadentes, satélites e muito mais, tudo renderizado em Canvas a 30fps. O fundo é preto puro (`#000000`), ideal para telas OLED.
 
-**Preview:**
-
-![Starfield preview](preview.gif)
+<img src="Imagens/Starfield.gif" width="500">
 
 **Efeitos:**
 - Estrelas com brilho pulsante e **classificação espectral realista** (classes M, K, G, F, A, B e O), cada tipo com cor, tamanho e frequência de ocorrência próprios
@@ -32,7 +30,31 @@ Um céu noturno animado com classificação estelar realista, galáxias, estrela
 | Trem Starlink | ~4 minutos |
 | OVNI | ~5 minutos |
 
----
+
+
+### ❄️ The North Remembers
+é um wallpaper animado criado para desktop, focado em criar uma ambientação cinematográfica através de efeitos visuais sutis e elementos vivos em tempo real.
+
+A proposta foi construir uma cena minimalista, porém imersiva, utilizando animações suaves, partículas dinâmicas e composição visual inspirada em ambientes frios e atmosféricos.
+
+Este foi meu **primeiro projeto de wallpaper animado**, marcando o início da minha exploração em experiências visuais interativas para desktop.
+
+<img src="Imagens/TheNorthRemembers.gif" width="500">
+
+## ✨ Features
+
+- ❄️ Sistema procedural de neve usando **Canvas API**
+- 🌫️ Efeito de névoa atmosférica em camadas
+- 🔵 Glow dinâmico pulsando no fundo
+- 🫁 Efeito de respiração suave no personagem
+- ⏰ Relógio em tempo real integrado
+- 📅 Data atual sincronizada automaticamente
+- 🎬 Composição cinematográfica para desktop
+- ⚡ Performance otimizada com `requestAnimationFrame()`
+
+## 👨‍💻 Autor
+
+[EduardoHolkem](https://github.com/EduardoHolkem)
 
 ## 🚀 Como usar
 
@@ -57,15 +79,17 @@ Os wallpapers podem ser embutidos como `<iframe>` em qualquer projeto web:
 2. Arraste o arquivo `.html` para a janela
 3. Defina como wallpaper ativo
 
----
 
-## 🛠️ Tecnologias
 
-- **HTML5 Canvas** para renderização dos efeitos
-- **JavaScript puro**, sem frameworks, sem dependências
-- **CSS3** para estilos base
+## 🛠 Tecnologias utilizadas
 
----
+```bash
+HTML5
+CSS3
+JavaScript Vanilla
+Canvas API
+Wallpaper Engine Web Project
+```
 
 ## 📁 Estrutura do repositório
 
@@ -79,22 +103,22 @@ animated-html-wallpapers/
 
 > Novos wallpapers serão adicionados seguindo esse padrão.
 
----
+
 
 ## 🤝 Contribuindo
 
 Tem uma ideia de wallpaper? Abre uma issue ou manda um pull request, quanto mais efeitos, melhor.
 
----
+
  
 ## 🙏 Créditos
  
 O wallpaper Starfield foi desenvolvido em colaboração com o [Claude](https://claude.ai) (Anthropic), que auxiliou na arquitetura dos efeitos e na implementação do código.
 
----
+
 
 ## 📄 Licença
  
 [MIT](LICENSE), use, modifique e distribua à vontade.
  
----
+
