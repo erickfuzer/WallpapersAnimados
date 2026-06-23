@@ -34,27 +34,23 @@ Um céu noturno animado com classificação estelar realista, galáxias, estrela
 
 ### ❄️ The North Remembers
 é um wallpaper animado criado para desktop, focado em criar uma ambientação cinematográfica através de efeitos visuais sutis e elementos vivos em tempo real.
-
 A proposta foi construir uma cena minimalista, porém imersiva, utilizando animações suaves, partículas dinâmicas e composição visual inspirada em ambientes frios e atmosféricos.
-
 Este foi meu **primeiro projeto de wallpaper animado**, marcando o início da minha exploração em experiências visuais interativas para desktop.
 
 <img src="Imagens/TheNorthRemembers.gif" width="500">
 
-## ✨ Features
+**Efeitos:**
+- **Personagem central em alta definição** com leve animação de respiração (*breathing effect*), criando sensação de presença viva e movimento sutil contínuo  
+- **Aura luminosa azulada dinâmica** posicionada atrás do personagem, utilizando *radial gradient* com pulso suave de intensidade para destacar a silhueta e gerar profundidade cinematográfica  
+- **Sistema de neve procedural em múltiplas camadas**, com partículas caindo em velocidades variadas, simulando ambiente congelado e tempestade leve em tempo real  
+- **Camada frontal de neve volumétrica** passando à frente do personagem, reforçando imersão tridimensional e sensação de profundidade espacial  
+- **Névoa densa atmosférica** posicionada na base da cena, com movimento lateral contínuo (*fog drift animation*) e aplicação de *blur* para criar ambientação fria e misteriosa  
+- **Efeito de iluminação dramática indireta** combinando contraste entre fundo claro e sombras suaves, valorizando o personagem e aumentando impacto visual  
+- **Sistema de relógio integrado em tempo real**, exibindo horas, minutos, segundos e data completa atualizada dinamicamente dentro da composição visual  
+- **Animação de pulso energético no fundo**, expandindo e contraindo suavemente para evitar cena estática e transmitir sensação orgânica constante  
+- **Vinheta cinematográfica sutil nas extremidades da tela**, escurecendo bordas gradualmente para direcionar o foco visual ao centro da composição  
+- **Composição visual inspirada em atmosfera invernal épica**, recriando cenário frio, silencioso e intenso com estética baseada em fantasia medieval e ambientação dramática
 
-- ❄️ Sistema procedural de neve usando **Canvas API**
-- 🌫️ Efeito de névoa atmosférica em camadas
-- 🔵 Glow dinâmico pulsando no fundo
-- 🫁 Efeito de respiração suave no personagem
-- ⏰ Relógio em tempo real integrado
-- 📅 Data atual sincronizada automaticamente
-- 🎬 Composição cinematográfica para desktop
-- ⚡ Performance otimizada com `requestAnimationFrame()`
-
-## 👨‍💻 Autor
-
-[EduardoHolkem](https://github.com/EduardoHolkem)
 
 ## 🚀 Como usar
 
