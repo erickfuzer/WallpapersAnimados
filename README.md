@@ -52,6 +52,30 @@ Este foi meu **primeiro projeto de wallpaper animado**, marcando o início da mi
 - **Composição visual inspirada em atmosfera invernal épica**, recriando cenário frio, silencioso e intenso com estética baseada em fantasia medieval e ambientação dramática
 
 
+
+### 🐉 Dreams Didn't Make Us Kings. Dragons Did.
+
+**Dreams Didn't Make Us Kings. Dragons Did.** é um wallpaper animado criado para desktop, focado em criar uma ambientação cinematográfica através de efeitos visuais sutis e elementos vivos em tempo real.
+
+A proposta foi construir uma cena minimalista, porém imersiva, utilizando animações suaves, partículas dinâmicas e composição visual inspirada em ambientes quentes, sombrios e atmosféricos da Casa Targaryen.
+
+Este foi meu **segundo projeto de wallpaper animado**, marcando a continuação da minha exploração em experiências visuais interativas para desktop.
+
+<img src="Imagens/Daemon.gif" width="500">
+
+**Efeitos:**
+- **Personagem central em alta definição** com leve animação de respiração (*breathing effect*), criando sensação de presença viva e movimento sutil contínuo  
+- **Aura luminosa carmesim dinâmica** posicionada atrás do personagem, utilizando *radial gradient* com pulso suave de intensidade para destacar a silhueta e gerar profundidade cinematográfica  
+- **Sistema de brasas procedurais em camada**, com partículas subindo em velocidades variadas, simulando um ambiente incandescente com fagulhas e cinzas em tempo real  
+- **Física de partículas invertida**, fazendo com que os fragmentos de fogo e luz dourada flutuem de baixo para cima, reforçando a temática de fogo valiriano  
+- **Composição de fundo em tom vermelho escuro profundo** (`#2a0008`), proporcionando um contraste dramático com as fagulhas brilhantes e a silhueta do Príncipe Daemon  
+- **Efeito de iluminação dramática indireta** combinando o contraste entre o fundo místico e sombras suaves, valorizando o personagem e aumentando o impacto visual  
+- **Sistema de relógio integrado em tempo real**, exibindo horas, minutos, segundos e data completa atualizada dinamicamente dentro da composição visual  
+- **Animação de pulso energético no fundo** (`glow-pulse`), expandindo e contraindo suavemente para evitar cena estática e transmitir sensação orgânica constante  
+- **Vinheta cinematográfica sutil nas extremidades da tela**, escurecendo as bordas gradualmente através de um gradiente radial elíptico para direcionar o foco visual ao centro da composição  
+- **Composição visual inspirada na Casa do Dragão**, recriando um cenário denso, imponente e perigoso com estética baseada na nobreza valiriana e ambientação dramática
+
+
 ## 🚀 Como usar
 
 ### No Wallpaper Engine
